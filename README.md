@@ -66,7 +66,13 @@ const tree = new InfiniteTree({
         drop: function(event, options) {
         }
     },
-    loadNodes: function(parentNode, next) { // Load node on demand
+    shouldLoadNodes: function(parentNode) {
+        if (!parentNode.hasChildren() && parentNode.loadOnDemand) {
+            return true;
+        }
+        return false;
+    },
+    loadNodes: function(parentNode, next) {
         // Loading...
         const nodes = [];
         nodes.length = 1000;
@@ -121,12 +127,14 @@ tree.on('clusterWillChange', function() {});
 tree.on('clusterDidChange', function() {});
 tree.on('contentWillUpdate', function() {});
 tree.on('contentDidUpdate', function() {});
-tree.on('openNode', function(node) {});
-tree.on('closeNode', function(node) {});
-tree.on('selectNode', function(node) {});
-tree.on('willOpenNode', function(node) {});
-tree.on('willCloseNode', function(node) {});
-tree.on('willSelectNode', function(node) {});
+tree.on('openNode', function(Node) {});
+tree.on('closeNode', function(Node) {});
+tree.on('selectNode', function(Node) {});
+tree.on('checkNode', function(Node) {});
+tree.on('willOpenNode', function(Node) {});
+tree.on('willCloseNode', function(Node) {});
+tree.on('willSelectNode', function(Node) {});
+tree.on('willCheckNode', function(Node) {});
 ```
 
 ## API Documentation
@@ -146,22 +154,55 @@ tree.on('willSelectNode', function(node) {});
 
 #### Creating tree nodes with checkboxes
 
-```js
-tree.on('willSelectNode', function(node) {
-    node.props.checked = !node.props.checked;
-    tree.updateNode(node);
-});
-```
-
 Sets the checked attribute in your rowRenderer:
 
 ```js
 const tag = require('html5-tag');
 
 const checkbox = tag('input', {
-  type: 'checkbox',
-  checked: node.props.checked
-}, '');
+    type: 'checkbox',
+    checked: node.state.checked,
+    'class': 'checkbox',
+    'data-indeterminate': node.state.indeterminate
+});
+```
+
+In your tree, add 'click', 'contentDidUpdate', 'clusterDidChange' event listeners as below:
+
+```js
+// `indeterminate` doesn't have a DOM attribute equivalent, so you need to update DOM on the fly.
+const updateIndeterminateState = (tree) => {
+    const checkboxes = tree.contentElement.querySelectorAll('input[type="checkbox"]');
+    for (let i = 0; i < checkboxes.length; ++i) {
+        const checkbox = checkboxes[i];
+        if (checkbox.hasAttribute('data-indeterminate')) {
+            checkbox.indeterminate = true;
+        } else {
+            checkbox.indeterminate = false;
+        }
+    }
+};
+
+tree.on('click', function(node) {
+    const currentNode = tree.getNodeFromPoint(event.clientX, event.clientY);
+    if (!currentNode) {
+        return;
+    }
+
+    if (event.target.className === 'checkbox') {
+        event.stopPropagation();
+        tree.checkNode(currentNode);
+        return;
+    }
+});
+
+tree.on('contentDidUpdate', () => {
+    updateIndeterminateState(tree);
+});
+
+tree.on('clusterDidChange', () => {
+    updateIndeterminateState(tree);
+});
 ```
 
 #### How to attach click event listeners to nodes?
@@ -327,7 +368,7 @@ You need to maintain an array of selected nodes by yourself. See below for detai
 let selectedNodes = [];
 tree.on('click', (event) => {
     // Return the node at the specified point
-    const currentNode = tree.getNodeFromPoint(event.x, event.y);
+    const currentNode = tree.getNodeFromPoint(event.clientX, event.clientY);
     if (!currentNode) {
         return;
     }

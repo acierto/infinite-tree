@@ -8,6 +8,18 @@ import './animation.styl';
 import { addEventListener, preventDefault, stopPropagation } from '../../src/dom';
 import data from '../data.json';
 
+const updateCheckboxState = (tree) => {
+    const checkboxes = tree.contentElement.querySelectorAll('input[type="checkbox"]');
+    for (let i = 0; i < checkboxes.length; ++i) {
+        const checkbox = checkboxes[i];
+        if (checkbox.hasAttribute('data-indeterminate')) {
+            checkbox.indeterminate = true;
+        } else {
+            checkbox.indeterminate = false;
+        }
+    }
+};
+
 const updatePreview = (node) => {
     const el = document.querySelector('#classic [data-id="preview"]');
     if (!el) {
@@ -29,6 +41,8 @@ const updatePreview = (node) => {
                 prefixMask: node.state.prefixMask,
                 selected: node.state.selected,
                 total: node.state.total,
+                checked: node.state.checked,
+                indeterminate: node.state.indeterminate,
                 filtered: node.state.filtered,
                 unfilteredChildren: node.state.unfilteredChildren
                     ? node.state.unfilteredChildren.map(node => node.id)
@@ -110,8 +124,14 @@ let selectedNodes = [];
 tree.on('click', (event) => {
     //console.log('click', event);
 
-    const currentNode = tree.getNodeFromPoint(event.x, event.y);
+    const currentNode = tree.getNodeFromPoint(event.clientX, event.clientY);
     if (!currentNode) {
+        return;
+    }
+
+    if (event.target.className === 'checkbox') {
+        event.stopPropagation();
+        tree.checkNode(currentNode);
         return;
     }
 
@@ -211,6 +231,9 @@ tree.on('contentWillUpdate', () => {
 });
 tree.on('contentDidUpdate', () => {
     //console.log('contentDidUpdate');
+
+    updateCheckboxState(tree);
+
     const node = tree.getSelectedNode();
     updatePreview(node);
 });
@@ -234,6 +257,10 @@ tree.on('willSelectNode', (node) => {
     //console.log('willSelectNode:', node);
 });
 tree.on('clusterDidChange', () => {
+    //console.log('clusterDidChange');
+
+    updateCheckboxState(tree);
+
     // No overlay on filtered mode
     if (tree.filtered) {
         return;
@@ -371,17 +398,17 @@ addEventListener(tree.contentElement, 'dragover', (e) => {
 
     event = event || window.event;
 
-    const movementX = event.x - (Number(draggingX) || event.x);
-    const movementY = event.y - (Number(draggingY) || event.y);
+    const movementX = event.clientX - (Number(draggingX) || event.clientX);
+    const movementY = event.clientY - (Number(draggingY) || event.clientY);
 
-    draggingX = event.x;
-    draggingY = event.y;
+    draggingX = event.clientX;
+    draggingY = event.clientY;
 
     if (movementY === 0) {
         return;
     }
 
-    let el = document.elementFromPoint(event.x, event.y);
+    let el = document.elementFromPoint(event.clientX, event.clientY);
     while (el && el.parentElement !== tree.contentElement) {
         el = el.parentElement;
     }
@@ -397,7 +424,7 @@ addEventListener(tree.contentElement, 'dragover', (e) => {
     const rect = el.getBoundingClientRect();
     const tolerance = 5;
 
-    if (event.y <= rect.top + tolerance) {
+    if (event.clientY <= rect.top + tolerance) {
         if (ghostElement) {
             ghostElement.parentNode.removeChild(ghostElement);
             ghostElement = null;
@@ -410,7 +437,7 @@ addEventListener(tree.contentElement, 'dragover', (e) => {
             ghostElement.style.backgroundColor = '#f5f6f7';
             el.parentNode.insertBefore(ghostElement, el);
         }
-    } else if (rect.top + el.offsetHeight <= event.y) {
+    } else if (rect.top + el.offsetHeight <= event.clientY) {
         if (el.nextSibling !== ghostElement) {
             if (ghostElement) {
                 ghostElement.parentNode.removeChild(ghostElement);
