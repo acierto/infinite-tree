@@ -7,6 +7,7 @@
   },
   "rules": {
     "lines-between-class-members": 0,
-    "max-classes-per-file": ["error", 1]
+    "max-classes-per-file": 0,
+    "max-lines-per-function": 0
   }
 }
