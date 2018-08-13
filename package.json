@@ -1,5 +1,5 @@
 {
-  "name": "infinite-tree",
+  "name": "xl-infinite-tree",
   "version": "1.14.11",
   "description": "A browser-ready tree library that can efficiently display a large amount of data using infinite scrolling.",
   "homepage": "https://github.com/cheton/infinite-tree",

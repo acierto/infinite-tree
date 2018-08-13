@@ -1435,7 +1435,7 @@ class InfiniteTree extends events.EventEmitter {
     }
 
     queryNodeById(nodeId) {
-        const queryId = nodeId.replace(/"/g, nodeId);
+        const queryId = nodeId ? nodeId.replace(/"/g, '\\"', nodeId) : nodeId;
         const nodeSelector = `[${this.options.nodeIdAttr}="${queryId}"]`;
         return this.contentElement.querySelector(nodeSelector);
     }
