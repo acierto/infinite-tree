@@ -340,6 +340,7 @@ class Clusterize extends EventEmitter {
 
         return nodes;
     }
+
     checkChanges(type, value) {
         const changed = (value !== this.cache[type]);
         this.cache[type] = value;

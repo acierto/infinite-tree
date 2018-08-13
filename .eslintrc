@@ -4,5 +4,9 @@
   "env": {
     "browser": true,
     "node": true
+  },
+  "rules": {
+    "lines-between-class-members": 0,
+    "max-classes-per-file": ["error", 1]
   }
 }

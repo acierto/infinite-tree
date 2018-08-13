@@ -387,7 +387,7 @@ function isUndefined(arg) {
 /***/ (function(module, exports, __webpack_require__) {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
-  Copyright (c) 2016 Jed Watson.
+  Copyright (c) 2017 Jed Watson.
   Licensed under the MIT License (MIT), see
   http://jedwatson.github.io/classnames
 */
@@ -409,8 +409,11 @@ var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
 
 			if (argType === 'string' || argType === 'number') {
 				classes.push(arg);
-			} else if (Array.isArray(arg)) {
-				classes.push(classNames.apply(null, arg));
+			} else if (Array.isArray(arg) && arg.length) {
+				var inner = classNames.apply(null, arg);
+				if (inner) {
+					classes.push(inner);
+				}
 			} else if (argType === 'object') {
 				for (var key in arg) {
 					if (hasOwn.call(arg, key) && arg[key]) {
@@ -424,6 +427,7 @@ var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
 	}
 
 	if (typeof module !== 'undefined' && module.exports) {
+		classNames.default = classNames;
 		module.exports = classNames;
 	} else if (true) {
 		// register as 'classnames', consistent with npm package name
@@ -919,6 +923,7 @@ var InfiniteTree = function (_events$EventEmitter) {
         _this.options = {
             autoOpen: false,
             droppable: false,
+            shouldLoadNodes: null,
             loadNodes: null,
             rowRenderer: _renderer.defaultRowRenderer,
             selectable: true,
@@ -1394,6 +1399,119 @@ var InfiniteTree = function (_events$EventEmitter) {
         var newNodes = [].concat(newNode || []); // Ensure array
         return this.addChildNodes(newNodes, index, parentNode);
     };
+    // Checks or unchecks a node.
+    // @param {Node} node The Node object.
+    // @param {boolean} [checked] Whether to check or uncheck the node. If not specified, it will toggle between checked and unchecked state.
+    // @return {boolean} Returns true on success, false otherwise.
+    // @example
+    //
+    // tree.checkNode(node); // toggle checked and unchecked state
+    // tree.checkNode(node, true); // checked=true, indeterminate=false
+    // tree.checkNode(node, false); // checked=false, indeterminate=false
+    //
+    // @doc
+    //
+    // state.checked | state.indeterminate | description
+    // ------------- | ------------------- | -----------
+    // false         | false               | The node and all of its children are unchecked.
+    // true          | false               | The node and all of its children are checked.
+    // true          | true                | The node will appear as indeterminate when the node is checked and some (but not all) of its children are checked.
+
+
+    InfiniteTree.prototype.checkNode = function checkNode(node, checked) {
+        if (!ensureNodeInstance(node)) {
+            return false;
+        }
+
+        this.emit('willCheckNode', node);
+
+        // Retrieve node index
+        var nodeIndex = this.nodes.indexOf(node);
+        if (nodeIndex < 0) {
+            error('Invalid node index');
+            return false;
+        }
+
+        if (checked === true) {
+            node.state.checked = true;
+            node.state.indeterminate = false;
+        } else if (checked === false) {
+            node.state.checked = false;
+            node.state.indeterminate = false;
+        } else {
+            node.state.checked = !!node.state.checked;
+            node.state.indeterminate = !!node.state.indeterminate;
+            node.state.checked = node.state.checked && node.state.indeterminate || !node.state.checked;
+            node.state.indeterminate = false;
+        }
+
+        var topmostNode = node;
+
+        var updateChildNodes = function updateChildNodes(parentNode) {
+            var childNode = parentNode.getFirstChild(); // Ignore parent node
+            while (childNode) {
+                // Update checked and indeterminate state
+                childNode.state.checked = parentNode.state.checked;
+                childNode.state.indeterminate = false;
+
+                if (childNode.hasChildren()) {
+                    childNode = childNode.getFirstChild();
+                } else {
+                    // Find the parent level
+                    while (childNode.getNextSibling() === null && childNode.parent !== parentNode) {
+                        // Use child-parent link to get to the parent level
+                        childNode = childNode.getParent();
+                    }
+
+                    // Get next sibling
+                    childNode = childNode.getNextSibling();
+                }
+            }
+        };
+
+        var updateParentNodes = function updateParentNodes(childNode) {
+            var parentNode = childNode.parent;
+
+            while (parentNode && parentNode.state.depth >= 0) {
+                topmostNode = parentNode;
+
+                var checkedCount = 0;
+                var indeterminate = false;
+
+                var len = parentNode.children ? parentNode.children.length : 0;
+                for (var i = 0; i < len; ++i) {
+                    var _childNode = parentNode.children[i];
+                    indeterminate = indeterminate || !!_childNode.state.indeterminate;
+                    if (_childNode.state.checked) {
+                        checkedCount++;
+                    }
+                }
+
+                if (checkedCount === 0) {
+                    parentNode.state.indeterminate = false;
+                    parentNode.state.checked = false;
+                } else if (checkedCount > 0 && checkedCount < len || indeterminate) {
+                    parentNode.state.indeterminate = true;
+                    parentNode.state.checked = true;
+                } else {
+                    parentNode.state.indeterminate = false;
+                    parentNode.state.checked = true;
+                }
+
+                parentNode = parentNode.parent;
+            }
+        };
+
+        updateChildNodes(node);
+        updateParentNodes(node);
+
+        this.updateNode(topmostNode);
+
+        // Emit a "checkNode" event
+        this.emit('checkNode', node);
+
+        return true;
+    };
     // Clears the tree.
 
 
@@ -1431,6 +1549,12 @@ var InfiniteTree = function (_events$EventEmitter) {
         }
 
         this.emit('willCloseNode', node);
+
+        // Cannot close the root node
+        if (node === this.state.rootNode) {
+            error('Cannot close the root node');
+            return false;
+        }
 
         // Retrieve node index
         var nodeIndex = this.nodes.indexOf(node);
@@ -1891,7 +2015,7 @@ var InfiniteTree = function (_events$EventEmitter) {
         var nodeIndex = this.nodes.indexOf(node);
 
         var fn = function fn() {
-            node.state.open = true; // Set node.state.open to true
+            node.state.open = true;
 
             if (_this6.state.openNodes.indexOf(node) < 0) {
                 // the most recently used items first
@@ -1955,7 +2079,9 @@ var InfiniteTree = function (_events$EventEmitter) {
             return true;
         }
 
-        if (!node.hasChildren() && node.loadOnDemand) {
+        var shouldLoadNodes = typeof this.options.shouldLoadNodes === 'function' ? !!this.options.shouldLoadNodes(node) : !node.hasChildren() && node.loadOnDemand;
+
+        if (shouldLoadNodes) {
             if (typeof this.options.loadNodes !== 'function') {
                 return false;
             }
@@ -1983,7 +2109,11 @@ var InfiniteTree = function (_events$EventEmitter) {
 
                     if (nodes.length === 0 && currentNodeIndex >= 0) {
                         node.state.open = true;
-                        _this6.state.openNodes = [node].concat(_this6.state.openNodes);
+
+                        if (_this6.state.openNodes.indexOf(node) < 0) {
+                            // the most recently used items first
+                            _this6.state.openNodes = [node].concat(_this6.state.openNodes);
+                        }
                     }
 
                     if (err || nodes.length === 0) {
@@ -2112,7 +2242,9 @@ var InfiniteTree = function (_events$EventEmitter) {
 
         // Update parent node
         parentNode.children = [];
-        parentNode.state.open = parentNode.state.open && parentNode.children.length > 0;
+        if (parentNode !== this.state.rootNode) {
+            parentNode.state.open = parentNode.state.open && parentNode.children.length > 0;
+        }
 
         if (parentNodeIndex >= 0) {
             // Update nodes & rows
@@ -2201,7 +2333,9 @@ var InfiniteTree = function (_events$EventEmitter) {
 
         // Update parent node
         parentNode.children.splice(parentNode.children.indexOf(node), 1);
-        parentNode.state.open = parentNode.state.open && parentNode.children.length > 0;
+        if (parentNode !== this.state.rootNode) {
+            parentNode.state.open = parentNode.state.open && parentNode.children.length > 0;
+        }
 
         if (nodeIndex >= 0) {
             // Update nodes & rows
@@ -2230,6 +2364,13 @@ var InfiniteTree = function (_events$EventEmitter) {
 
         return true;
     };
+
+    InfiniteTree.prototype.queryNodeById = function queryNodeById(nodeId) {
+        var queryId = nodeId.replace(/"/g, nodeId);
+        var nodeSelector = '[' + this.options.nodeIdAttr + '="' + queryId + '"]';
+        return this.contentElement.querySelector(nodeSelector);
+    };
+
     // Sets the current scroll position to this node.
     // @param {Node} node The Node object.
     // @return {boolean} Returns true on success, false otherwise.
@@ -2265,8 +2406,7 @@ var InfiniteTree = function (_events$EventEmitter) {
         }
 
         // Find the absolute position of the node
-        var nodeSelector = '[' + this.options.nodeIdAttr + '="' + node.id + '"]';
-        var nodeEl = this.contentElement.querySelector(nodeSelector);
+        var nodeEl = this.queryNodeById(node.id);
         if (nodeEl) {
             this.scrollTop(nodeEl.offsetTop);
         }
@@ -2287,6 +2427,7 @@ var InfiniteTree = function (_events$EventEmitter) {
         }
         return this.scrollElement.scrollTop;
     };
+
     // Selects a node.
     // @param {Node} node The Node object. If null or undefined, deselects the current node.
     // @param {object} [options] The options object.
@@ -2379,8 +2520,7 @@ var InfiniteTree = function (_events$EventEmitter) {
             }
 
             if (autoScroll && this.scrollElement && this.contentElement) {
-                var nodeSelector = '[' + this.options.nodeIdAttr + '="' + node.id + '"]';
-                var nodeEl = this.contentElement.querySelector(nodeSelector);
+                var nodeEl = this.queryNodeById(node.id);
                 if (nodeEl) {
                     var offsetTop = nodeEl.offsetTop || 0;
                     var offsetHeight = nodeEl.offsetHeight || 0;
