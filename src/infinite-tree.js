@@ -675,8 +675,7 @@ class InfiniteTree extends events.EventEmitter {
         }
 
         // Retrieve node index
-        const nodeIndex = this.nodes.indexOf(node);
-        if (nodeIndex < 0) {
+        if (this.nodes.indexOf(node) < 0) {
             error('Invalid node index');
             return false;
         }
@@ -689,7 +688,7 @@ class InfiniteTree extends events.EventEmitter {
         // Toggle the collapsing state
         node.state.collapsing = true;
         // Update the row corresponding to the node
-        this.rows[nodeIndex] = this.options.rowRenderer(node, this.options);
+        this.rows[this.nodes.indexOf(node)] = this.options.rowRenderer(node, this.options);
         // Update list
         this.update();
 
@@ -703,8 +702,8 @@ class InfiniteTree extends events.EventEmitter {
                 // row #4     node.0.1
                 const selectedIndex = this.nodes.indexOf(this.state.selectedNode);
                 const total = node.state.total;
-                const rangeFrom = nodeIndex + 1;
-                const rangeTo = nodeIndex + total;
+                const rangeFrom = this.nodes.indexOf(node) + 1;
+                const rangeTo = this.nodes.indexOf(node) + total;
 
                 if ((rangeFrom <= selectedIndex) && (selectedIndex <= rangeTo)) {
                     this.selectNode(node, options);
@@ -722,13 +721,13 @@ class InfiniteTree extends events.EventEmitter {
             }
 
             // Update nodes & rows
-            this.nodes.splice(nodeIndex + 1, total);
-            this.rows.splice(nodeIndex + 1, total);
+            this.nodes.splice(this.nodes.indexOf(node) + 1, total);
+            this.rows.splice(this.nodes.indexOf(node) + 1, total);
 
             // Toggle the collapsing state
             node.state.collapsing = false;
             // Update the row corresponding to the node
-            this.rows[nodeIndex] = this.options.rowRenderer(node, this.options);
+            this.rows[this.nodes.indexOf(node)] = this.options.rowRenderer(node, this.options);
 
             // Update list
             this.update();
@@ -1085,8 +1084,6 @@ class InfiniteTree extends events.EventEmitter {
         this.emit('willOpenNode', node);
 
         // Retrieve node index
-        const nodeIndex = this.nodes.indexOf(node);
-
         const fn = () => {
             node.state.open = true;
 
@@ -1109,7 +1106,7 @@ class InfiniteTree extends events.EventEmitter {
             // Toggle the expanding state
             node.state.expanding = false;
 
-            if (nodeIndex >= 0) {
+            if (this.nodes.indexOf(node) >= 0) {
                 const rows = [];
                 // Update rows
                 rows.length = nodes.length;
@@ -1119,11 +1116,11 @@ class InfiniteTree extends events.EventEmitter {
                 }
 
                 // Update nodes & rows
-                this.nodes.splice.apply(this.nodes, [nodeIndex + 1, 0].concat(nodes));
-                this.rows.splice.apply(this.rows, [nodeIndex + 1, 0].concat(rows));
+                this.nodes.splice.apply(this.nodes, [this.nodes.indexOf(node) + 1, 0].concat(nodes));
+                this.rows.splice.apply(this.rows, [this.nodes.indexOf(node) + 1, 0].concat(rows));
 
                 // Update the row corresponding to the node
-                this.rows[nodeIndex] = this.options.rowRenderer(node, this.options);
+                this.rows[this.nodes.indexOf(node)] = this.options.rowRenderer(node, this.options);
 
                 // Update list
                 this.update();
@@ -1139,7 +1136,7 @@ class InfiniteTree extends events.EventEmitter {
             }
         };
 
-        if (nodeIndex < 0) {
+        if (this.nodes.indexOf(node) < 0) {
             // Toggle the expanding state
             node.state.expanding = true;
 
@@ -1169,7 +1166,7 @@ class InfiniteTree extends events.EventEmitter {
             // Toggle the loading state
             node.state.loading = true;
             // Update the row corresponding to the node
-            this.rows[nodeIndex] = this.options.rowRenderer(node, this.options);
+            this.rows[this.nodes.indexOf(node)] = this.options.rowRenderer(node, this.options);
             // Update list
             this.update();
 
@@ -1178,9 +1175,7 @@ class InfiniteTree extends events.EventEmitter {
                 this.options.loadNodes(node, (err, nodes, done = noop) => {
                     nodes = ensureArray(nodes);
 
-                    const currentNodeIndex = this.nodes.indexOf(node);
-
-                    if (nodes.length === 0 && currentNodeIndex >= 0) {
+                    if (nodes.length === 0 && this.nodes.indexOf(node) >= 0) {
                         node.state.open = true;
 
                         if (this.state.openNodes.indexOf(node) < 0) {
@@ -1193,7 +1188,7 @@ class InfiniteTree extends events.EventEmitter {
                         // Toggle the loading state
                         node.state.loading = false;
                         // Update the row corresponding to the node
-                        this.rows[currentNodeIndex] = this.options.rowRenderer(node, this.options);
+                        this.rows[this.nodes.indexOf(node)] = this.options.rowRenderer(node, this.options);
                         // Update list
                         this.update();
 
@@ -1214,9 +1209,8 @@ class InfiniteTree extends events.EventEmitter {
                             asyncCallback: () => {
                                 // Toggle the loading state
                                 node.state.loading = false;
-                                const openedNodeIndex = this.nodes.indexOf(node);
                                 // Update the row corresponding to the node
-                                this.rows[openedNodeIndex] = this.options.rowRenderer(node, this.options);
+                                this.rows[this.nodes.indexOf(node)] = this.options.rowRenderer(node, this.options);
                                 // Update list
                                 this.update();
 
@@ -1229,7 +1223,7 @@ class InfiniteTree extends events.EventEmitter {
                         // Toggle the loading state
                         node.state.loading = false;
                         // Update the row corresponding to the node
-                        this.rows[currentNodeIndex] = this.options.rowRenderer(node, this.options);
+                        this.rows[this.nodes.indexOf(node)] = this.options.rowRenderer(node, this.options);
                         // Update list
                         this.update();
 
@@ -1247,7 +1241,7 @@ class InfiniteTree extends events.EventEmitter {
         node.state.expanding = true;
 
         // Update the row corresponding to the node
-        this.rows[nodeIndex] = this.options.rowRenderer(node, this.options);
+        this.rows[this.nodes.indexOf(node)] = this.options.rowRenderer(node, this.options);
         // Update list
         this.update();
 
