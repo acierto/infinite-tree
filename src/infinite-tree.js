@@ -446,19 +446,14 @@ class InfiniteTree extends events.EventEmitter {
             return false;
         }
 
-        if (typeof index === 'object') { // The 'object' type might be Node or null
-            parentNode = index || this.state.rootNode; // Defaults to rootNode if not specified
+        parentNode = parentNode || this.state.rootNode; // Defaults to rootNode if not specified
+
+        if (index === undefined) {
             index = parentNode.children.length;
-        } else {
-            parentNode = parentNode || this.state.rootNode; // Defaults to rootNode if not specified
         }
 
         if (!ensureNodeInstance(parentNode)) {
             return false;
-        }
-
-        if (typeof index !== 'number') {
-            index = parentNode.children.length;
         }
 
         // Assign parent
@@ -1208,7 +1203,7 @@ class InfiniteTree extends events.EventEmitter {
                         return;
                     }
 
-                    this.addChildNodes(nodes, node);
+                    this.addChildNodes(nodes, undefined, node);
 
                     // Ensure the node has children to prevent infinite loop
                     if (node.hasChildren()) {
