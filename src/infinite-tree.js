@@ -65,6 +65,7 @@ const createRootNode = (rootNode) => {
 class InfiniteTree extends events.EventEmitter {
     options = {
         autoOpen: false,
+        blocksInCluster: 4,
         droppable: false,
         shouldLoadNodes: null,
         loadNodes: null,
@@ -366,7 +367,8 @@ class InfiniteTree extends events.EventEmitter {
                 scrollElement: this.scrollElement,
                 contentElement: this.contentElement,
                 emptyText: this.options.noDataText,
-                emptyClass: this.options.noDataClass
+                emptyClass: this.options.noDataClass,
+                blocksInCluster: this.options.blocksInCluster
             });
 
             this.clusterize.on('clusterWillChange', () => {
